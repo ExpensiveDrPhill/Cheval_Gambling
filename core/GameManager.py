@@ -1,7 +1,12 @@
 import pygame
 import random
 import sys
+import os
 import math
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from core.Horse import Horse
 
 # --- Initialization ---
@@ -13,6 +18,8 @@ SCREEN_WIDTH = 800
 RACE_HEIGHT = 400
 UI_HEIGHT = 200
 SCREEN_HEIGHT = RACE_HEIGHT + UI_HEIGHT
+TRACK_TOP_MARGIN = 100      
+TRACK_BOTTOM_MARGIN = 400
 
 # --- Colors ---
 WHITE = (255, 255, 255)
@@ -27,17 +34,31 @@ GOLD = (255, 215, 0)
 GOLD_DARK = (180, 150, 0)
 STAT_BAR_BG = (80, 0, 0)
 STAT_BAR_FG = (200, 0, 0)
+BRIGHT_GREEN = (50, 255, 50)
 
 # --- Game Constants ---
 START_LINE_X = 40
-FINISH_LINE_X = SCREEN_WIDTH - 60
+FINISH_LINE_X = SCREEN_WIDTH - 80
 HORSE_SPRITE_WIDTH = 64 
 HORSE_SPRITE_HEIGHT = 48
 STARTING_CASH = 5000
 DEBT_TO_PAY = 10000
 DAY_LIMIT = 30
 WIN_TARGET_CASH = 20000 
-ANIMATION_SPEED_MS = 100 
+ANIMATION_SPEED_MS = 100
+
+# --- Track Line Positioning ---
+TRACK_TOP_MARGIN = 85     # Y coordinate where lines START (top)
+TRACK_BOTTOM_MARGIN = 250  # Y coordinate where lines END (bottom)
+
+#Weather Types 
+WEATHER_TYPES = ["Sunny", "Rainy", "Cloudy", "Windy", "Foggy"]
+
+# Horse Names 
+HORSE_NAMES = [
+    "Frankfurt","Mejiro","Seabiscuit", "Black Death", "Senomy", "Nearly There",
+    "Thunderbolt", "Shadowfax", "Windrunner", "Stormchaser"
+] 
 
 # --- Fonts ---
 try:
@@ -78,30 +99,101 @@ def draw_stat_bar(surface, y, label, value):
     pygame.draw.rect(surface, STAT_BAR_BG, bar_bg_rect)
     pygame.draw.rect(surface, STAT_BAR_FG, bar_fg_rect)
 
+# --- WEATHER CLASS ---
+
+class Weather:
+    """Manages weather conditions and their effects on horses."""
+    def __init__(self):
+        self.current_weather = random.choice(WEATHER_TYPES)
+    
+    def change_weather(self):
+        """Randomly change the weather for a new race."""
+        self.current_weather = random.choice(WEATHER_TYPES)
+    
+    def get_performance_modifier(self, horse_weather_preference):
+        """Returns a speed modifier based on weather match."""
+        if self.current_weather == horse_weather_preference:
+            return 1.3  # 30% boost in preferred weather
+        elif self.current_weather in ["Rainy", "Foggy"] and horse_weather_preference in ["Sunny", "Windy"]:
+            return 0.8  # 20% penalty in opposite conditions
+        elif self.current_weather in ["Sunny", "Windy"] and horse_weather_preference in ["Rainy", "Foggy"]:
+            return 0.8  # 20% penalty in opposite conditions
+        else:
+            return 1.0  # Neutral
+
 # --- GAMEMANAGER CLASS ---
 
 class GameManager:
     """Manages the overall game state, loop, and data."""
     def __init__(self):
         self.cash = STARTING_CASH
+        self.original_debt = DEBT_TO_PAY
         self.debt = DEBT_TO_PAY
         self.day = 1
         self.day_limit = DAY_LIMIT
         self.win_target = WIN_TARGET_CASH
         self.game_state = "BETTING" 
         
-        self.horses = [
-            Horse("Horse 1", 100, "Assets\\2.png", RED,
-                  START_LINE_X, HORSE_SPRITE_WIDTH, HORSE_SPRITE_HEIGHT, ANIMATION_SPEED_MS),
-            Horse("Horse 2", 250, "Assets\\2.png", BLUE,
-                  START_LINE_X, HORSE_SPRITE_WIDTH, HORSE_SPRITE_HEIGHT, ANIMATION_SPEED_MS)
+        # Build path to assets
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
+        # Load background image
+        try:
+            bg_path = os.path.join(project_root, "Assets", "horse race arena.png")
+            self.background = pygame.image.load(bg_path).convert()
+            self.background = pygame.transform.scale(self.background, (SCREEN_WIDTH, RACE_HEIGHT))
+        except:
+            self.background = None
+        
+        # Weather system
+        self.weather = Weather()
+        
+        # Available horse sprites
+        self.available_sprites = [
+            os.path.join(project_root, "Assets", "Horses", "3.png"),
+            os.path.join(project_root, "Assets", "Horses", "4.png"),
+            os.path.join(project_root, "Assets", "Horses", "5.png"),
+            os.path.join(project_root, "Assets", "Horses", "6.png"),
+            os.path.join(project_root, "Assets", "Horses", "7.png"),
+            os.path.join(project_root, "Assets", "Horses", "8.png"),
         ]
+        
+        self.horses = self._create_horses()
         
         self.selected_horse = self.horses[0]
         self.bet_amount = 0
         self.selected_bet_pct = 0
         self.winner = None
         self.game_over_message = ""
+    
+    def _create_horses(self):
+        """Create unique horses with different sprites and weather preferences."""
+        horses = []
+        y_positions = [90, 110, 130, 155, 180]
+        
+        # Randomly choose 3-5 horses for this race
+        num_horses = random.randint(3, 5)
+        used_sprites = random.sample(self.available_sprites, min(num_horses, len(self.available_sprites)))
+        used_y_positions = y_positions[:num_horses]
+        # Pick unique random names for this race
+        used_names = random.sample(HORSE_NAMES, num_horses)
+        
+        for i, (sprite_path, y_pos, name) in enumerate(zip(used_sprites, used_y_positions, used_names)):
+            weather_pref = random.choice(WEATHER_TYPES)
+            horse = Horse(
+                name=name,
+                y_pos=y_pos,
+                spritesheet_filename=sprite_path,
+                color_fallback=(random.randint(100, 255), random.randint(100, 255), random.randint(100, 255)),
+                start_line_x=START_LINE_X,
+                horse_sprite_width=HORSE_SPRITE_WIDTH,
+                horse_sprite_height=HORSE_SPRITE_HEIGHT,
+                animation_speed_ms=ANIMATION_SPEED_MS,
+                weather_preference=weather_pref
+            )
+            horses.append(horse)
+        
+        return horses
 
     def select_horse(self, mouse_pos):
         if self.game_state != "BETTING":
@@ -138,7 +230,9 @@ class GameManager:
             return
 
         for horse in self.horses:
-            horse.move()
+            # Get weather modifier for this horse
+            weather_mod = self.weather.get_performance_modifier(horse.weather_preference)
+            horse.move(weather_mod)
             horse.update_animation() # Update animation while racing
             if horse.rect.right >= FINISH_LINE_X and not self.winner:
                 self.winner = horse
@@ -151,6 +245,14 @@ class GameManager:
         if self.winner == self.selected_horse:
             winnings = math.floor(self.bet_amount * self.selected_horse.multiplier)
             self.cash += winnings + self.bet_amount
+        self.update_debt()
+    
+    def update_debt(self):
+        """Calculate debt dynamically based on cash progress."""
+        cash_gained = self.cash - STARTING_CASH
+        self.debt = self.original_debt - cash_gained
+        # Clamp debt between 0 and original debt
+        self.debt = max(0, min(self.original_debt, self.debt))
 
     def next_day(self):
         self.day += 1
@@ -170,9 +272,10 @@ class GameManager:
             self.game_state = "BETTING"
             self.bet_amount = 0
             self.selected_bet_pct = 0
-            for horse in self.horses:
-                horse.reset()
-            self.selected_horse = next(h for h in self.horses if h.name == self.selected_horse.name)
+            # Change weather and regenerate horses for variety
+            self.weather.change_weather()
+            self.horses = self._create_horses()
+            self.selected_horse = self.horses[0]
 
     def full_game_reset(self):
         self.__init__()
@@ -198,9 +301,16 @@ class GameManager:
                 self.full_game_reset()
 
     def draw(self, surface):
-        surface.fill(GREEN_TRACK)
-        pygame.draw.line(surface, FINISH_LINE_COLOR, (FINISH_LINE_X, 0), (FINISH_LINE_X, RACE_HEIGHT), 5)
-        pygame.draw.line(surface, WHITE, (START_LINE_X, 0), (START_LINE_X, RACE_HEIGHT), 2)
+        # Draw background or green fill
+        if self.background:
+            surface.blit(self.background, (0, 0))
+        else:
+            surface.fill(GREEN_TRACK)
+        
+        # Draw finish line (vertical yellow line on the right)
+        pygame.draw.line(surface, FINISH_LINE_COLOR, (FINISH_LINE_X, TRACK_TOP_MARGIN), (FINISH_LINE_X, TRACK_BOTTOM_MARGIN), 5)
+        # Draw start line (vertical white line on the left)
+        pygame.draw.line(surface, WHITE, (START_LINE_X, TRACK_TOP_MARGIN), (START_LINE_X, TRACK_BOTTOM_MARGIN), 2)
         
         for horse in self.horses:
             horse.draw(surface)
@@ -233,13 +343,26 @@ class GameManager:
         draw_stat_bar(surface, 455, "STAMINA", self.selected_horse.stats["STAMINA"])
         draw_stat_bar(surface, 480, "WIT", self.selected_horse.stats["WIT"])
         
+        # Top UI - Objective and Debt (center-top)
+        draw_text("OBJECTIVE: Finish your debt", micro_font, WHITE, surface, SCREEN_WIDTH // 2, 10, align="center")
+        draw_text(f"DEBT: {self.debt:,.0f}", small_font, RED, surface, SCREEN_WIDTH // 2, 30, align="center")
+        
+        # Top-right - Day counter
+        draw_text(f"DAY: {self.day} / {self.day_limit}", small_font, WHITE, surface, SCREEN_WIDTH - 10, 10, align="midright")
+        
         # Info
         draw_text(f"CHANCES: {self.selected_horse.winrate_percent:.0f}%", small_font, WHITE, surface, 590, 430)
-        draw_text(f"DAY: {self.day} / {self.day_limit}", small_font, WHITE, surface, 590, 455)
-        draw_text(f"DEBT: {self.debt:,.0f}", small_font, RED, surface, 770, 430, align="midright")
+        draw_text(f"WEATHER: {self.weather.current_weather}", small_font, WHITE, surface, 590, 455)
+        draw_text(f"PREFERS: {self.selected_horse.weather_preference}", micro_font, WHITE, surface, 590, 480)
+        
+        # Cash display
         draw_text(f"CASH: {self.cash:,.0f}", medium_font, WHITE, surface, 770, 530, align="midright")
         if self.bet_amount > 0:
             draw_text(f"BET: {self.bet_amount:,.0f}", small_font, GOLD, surface, 770, 555, align="midright")
+            # Show potential earnings only during betting phase
+            if self.game_state == "BETTING":
+                potential_win = math.floor(self.bet_amount * self.selected_horse.multiplier)
+                draw_text(f"POTENTIAL: +{potential_win:,.0f}", small_font, BRIGHT_GREEN, surface, 770, 580, align="midright")
 
         # Play Button
         pygame.draw.rect(surface, RED, play_button_rect)

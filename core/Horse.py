@@ -1,5 +1,11 @@
 import pygame
 import random
+import sys
+import os
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from anims.SpriteSheet import SpriteSheet 
 
 class Horse:
@@ -7,13 +13,15 @@ class Horse:
     Stores all data for a single horse, including multiple animation states.
     """
     def __init__(self, name, y_pos, spritesheet_filename, color_fallback, 
-                 start_line_x, horse_sprite_width, horse_sprite_height, animation_speed_ms):
+                 start_line_x, horse_sprite_width, horse_sprite_height, animation_speed_ms,
+                 weather_preference="Sunny"):
         
         self.name = name
         self.rect = pygame.Rect(start_line_x, y_pos, horse_sprite_width, horse_sprite_height)
         self.color_fallback = color_fallback
         self.start_line_x = start_line_x
         self.animation_speed_ms = animation_speed_ms
+        self.weather_preference = weather_preference
         
         self.stats = {}
         self.winrate_percent = 0
@@ -77,10 +85,12 @@ class Horse:
         self.multiplier = 1.1 + ((1.0 - normalized_winrate) * multiplier_range)
         self.multiplier = round(max(1.1, min(2.0, self.multiplier)), 2)
 
-    def move(self):
+    def move(self, weather_modifier=1.0):
         speed_roll = random.randint(1, 3) + int(self.stats["SPEED"] / 20)
         stamina_roll = random.randint(0, int(self.stats["STAMINA"] / 33))
-        self.rect.x += speed_roll + stamina_roll
+        # Apply weather modifier to movement
+        movement = (speed_roll + stamina_roll) * weather_modifier
+        self.rect.x += int(movement)
         
     def reset(self):
         self.rect.x = self.start_line_x 
