@@ -24,9 +24,7 @@ class SpriteSheet:
         return image
 
     def get_animation_column(self, frame_width, frame_height, column_index, start_row_index, num_frames, scale_width, scale_height):
-        """
-        Cuts a vertical column of frames from the spritesheet.
-        """
+        """Cuts a vertical column of frames from the spritesheet."""
         frames = []
         # X coordinate is constant for a column
         x = column_index * frame_width 
@@ -34,5 +32,17 @@ class SpriteSheet:
         for i in range(num_frames):
             # Y coordinate changes for each frame
             y = (start_row_index + i) * frame_height
+            frames.append(self.get_image(x, y, frame_width, frame_height, scale_width, scale_height))
+        return frames
+    
+    def get_animation_row(self, frame_width, frame_height, num_frames, scale_width, scale_height, row_index=0):
+        """Cuts a horizontal row of frames from the spritesheet (strip)."""
+        frames = []
+        # Y coordinate is constant for a row
+        y = row_index * frame_height
+        
+        for i in range(num_frames):
+            # X coordinate changes for each frame
+            x = i * frame_width
             frames.append(self.get_image(x, y, frame_width, frame_height, scale_width, scale_height))
         return frames

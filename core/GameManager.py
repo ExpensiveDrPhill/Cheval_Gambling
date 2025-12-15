@@ -9,11 +9,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.Horse import Horse
 
-# --- Initialization ---
+#I nitialization
 pygame.init()
 pygame.font.init()
 
-# --- Screen Settings ---
+#  Screen Settings 
 SCREEN_WIDTH = 800
 RACE_HEIGHT = 400
 UI_HEIGHT = 200
@@ -21,7 +21,7 @@ SCREEN_HEIGHT = RACE_HEIGHT + UI_HEIGHT
 TRACK_TOP_MARGIN = 100      
 TRACK_BOTTOM_MARGIN = 400
 
-# --- Colors ---
+#  Colors 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GREEN_TRACK = (34, 139, 34)
@@ -36,7 +36,7 @@ STAT_BAR_BG = (80, 0, 0)
 STAT_BAR_FG = (200, 0, 0)
 BRIGHT_GREEN = (50, 255, 50)
 
-# --- Game Constants ---
+#  Game Constants 
 START_LINE_X = 40
 FINISH_LINE_X = SCREEN_WIDTH - 80
 HORSE_SPRITE_WIDTH = 64 
@@ -47,12 +47,12 @@ DAY_LIMIT = 30
 WIN_TARGET_CASH = 20000 
 ANIMATION_SPEED_MS = 100
 
-# --- Track Line Positioning ---
-TRACK_TOP_MARGIN = 85     # Y coordinate where lines START (top)
-TRACK_BOTTOM_MARGIN = 250  # Y coordinate where lines END (bottom)
+#lining
+TRACK_TOP_MARGIN = 85     # Y top line awal
+TRACK_BOTTOM_MARGIN = 250  # Y bottom line akhir
 
 #Weather Types 
-WEATHER_TYPES = ["Sunny", "Rainy", "Cloudy", "Windy", "Foggy"]
+WEATHER_TYPES = ["Sunny", "Rainy"]
 
 # Horse Names 
 HORSE_NAMES = [
@@ -60,7 +60,7 @@ HORSE_NAMES = [
     "Thunderbolt", "Shadowfax", "Windrunner", "Stormchaser"
 ] 
 
-# --- Fonts ---
+# Fonts 
 try:
     large_font = pygame.font.SysFont('Arial', 50)
     medium_font = pygame.font.SysFont('Arial', 24)
@@ -72,14 +72,14 @@ except pygame.error:
     small_font = pygame.font.Font(None, 24)
     micro_font = pygame.font.Font(None, 18)
 
-# --- UI Element Rects ---
+#  UI Element Rects 
 play_button_rect = pygame.Rect(400, 480, 160, 80)
 bet_25_rect = pygame.Rect(30, 530, 35, 35)
 bet_50_rect = pygame.Rect(75, 530, 35, 35)
 bet_100_rect = pygame.Rect(120, 530, 35, 35)
 horse_img_rect = pygame.Rect(30, 425, 120, 90)
 
-# --- Helper Functions ---
+#  Helper Functions 
 def draw_text(text, font, color, surface, x, y, align="topleft"):
     text_obj = font.render(text, True, color)
     text_rect = text_obj.get_rect()
@@ -99,7 +99,7 @@ def draw_stat_bar(surface, y, label, value):
     pygame.draw.rect(surface, STAT_BAR_BG, bar_bg_rect)
     pygame.draw.rect(surface, STAT_BAR_FG, bar_fg_rect)
 
-# --- WEATHER CLASS ---
+#  WEATHER CLASS 
 
 class Weather:
     """Manages weather conditions and their effects on horses."""
@@ -113,15 +113,13 @@ class Weather:
     def get_performance_modifier(self, horse_weather_preference):
         """Returns a speed modifier based on weather match."""
         if self.current_weather == horse_weather_preference:
-            return 1.3  # 30% boost in preferred weather
-        elif self.current_weather in ["Rainy", "Foggy"] and horse_weather_preference in ["Sunny", "Windy"]:
-            return 0.8  # 20% penalty in opposite conditions
-        elif self.current_weather in ["Sunny", "Windy"] and horse_weather_preference in ["Rainy", "Foggy"]:
+            return 1.1  # 10% boost in preferred weather
+        elif self.current_weather in ["Rainy"] and horse_weather_preference in ["Sunny"]:
             return 0.8  # 20% penalty in opposite conditions
         else:
             return 1.0  # Neutral
 
-# --- GAMEMANAGER CLASS ---
+#  GAMEMANAGER CLASS 
 
 class GameManager:
     """Manages the overall game state, loop, and data."""
@@ -148,15 +146,32 @@ class GameManager:
         # Weather system
         self.weather = Weather()
         
-        # Available horse sprites
-        self.available_sprites = [
-            os.path.join(project_root, "Assets", "Horses", "3.png"),
-            os.path.join(project_root, "Assets", "Horses", "4.png"),
-            os.path.join(project_root, "Assets", "Horses", "5.png"),
-            os.path.join(project_root, "Assets", "Horses", "6.png"),
-            os.path.join(project_root, "Assets", "Horses", "7.png"),
-            os.path.join(project_root, "Assets", "Horses", "8.png"),
-        ]
+        # Load sound effects
+        try:
+            pygame.mixer.init()
+            sounds_path = os.path.join(project_root, "Sounds")
+            self.sound_bet_low = pygame.mixer.Sound(os.path.join(sounds_path, "select_low.wav"))
+            self.sound_bet_mid = pygame.mixer.Sound(os.path.join(sounds_path, "select_normal.wav"))
+            self.sound_bet_high = pygame.mixer.Sound(os.path.join(sounds_path, "select_high.wav"))
+            self.sound_cash_register = pygame.mixer.Sound(os.path.join(sounds_path, "cash_register.mp3"))
+            self.sound_horse_gallop = pygame.mixer.Sound(os.path.join(sounds_path, "horse_galloping.mp3"))
+            self.sound_losing_bell = pygame.mixer.Sound(os.path.join(sounds_path, "losing_bell.wav"))
+        except:
+            print("Warning: Could not load sound files. Game will run without audio.")
+            self.sound_bet_low = None
+            self.sound_bet_mid = None
+            self.sound_bet_high = None
+            self.sound_cash_register = None
+            self.sound_horse_gallop = None
+            self.sound_losing_bell = None
+        
+        # Available horse sprite pairs (idle, run)
+        self.available_horse_colors = ["black", "brown", "brown2", "gray", "white", "yellow"]
+        self.available_sprites = []
+        for color in self.available_horse_colors:
+            idle_path = os.path.join(project_root, "Assets", f"horses_idle_right_{color}.png")
+            run_path = os.path.join(project_root, "Assets", f"horses_run_right_{color}.png")
+            self.available_sprites.append((idle_path, run_path))
         
         self.horses = self._create_horses()
         
@@ -173,17 +188,19 @@ class GameManager:
         
         # Randomly choose 3-5 horses for this race
         num_horses = random.randint(3, 5)
-        used_sprites = random.sample(self.available_sprites, min(num_horses, len(self.available_sprites)))
+        used_sprite_pairs = random.sample(self.available_sprites, min(num_horses, len(self.available_sprites)))
         used_y_positions = y_positions[:num_horses]
-        # Pick unique random names for this race
+        # Pick unique names
         used_names = random.sample(HORSE_NAMES, num_horses)
         
-        for i, (sprite_path, y_pos, name) in enumerate(zip(used_sprites, used_y_positions, used_names)):
+        for i, (sprite_pair, y_pos, name) in enumerate(zip(used_sprite_pairs, used_y_positions, used_names)):
+            idle_path, run_path = sprite_pair
             weather_pref = random.choice(WEATHER_TYPES)
             horse = Horse(
                 name=name,
                 y_pos=y_pos,
-                spritesheet_filename=sprite_path,
+                idle_strip_path=idle_path,
+                run_strip_path=run_path,
                 color_fallback=(random.randint(100, 255), random.randint(100, 255), random.randint(100, 255)),
                 start_line_x=START_LINE_X,
                 horse_sprite_width=HORSE_SPRITE_WIDTH,
@@ -221,6 +238,10 @@ class GameManager:
             self.game_state = "RACING"
             self.winner = None
             
+            # Play gallop sound on loop (-1 means infinite loop)
+            if self.sound_horse_gallop:
+                self.sound_horse_gallop.play(loops=-1)
+            
             # Switch all horses to RUNNING animation
             for horse in self.horses:
                 horse.set_animation_state("RUNNING")
@@ -237,6 +258,9 @@ class GameManager:
             if horse.rect.right >= FINISH_LINE_X and not self.winner:
                 self.winner = horse
                 self.game_state = "POST_RACE"
+                # Stop gallop sound when race ends
+                if self.sound_horse_gallop:
+                    self.sound_horse_gallop.stop()
                 self.process_winnings()
                 self.next_day()
                 break
@@ -245,6 +269,13 @@ class GameManager:
         if self.winner == self.selected_horse:
             winnings = math.floor(self.bet_amount * self.selected_horse.multiplier)
             self.cash += winnings + self.bet_amount
+            # Play cash register sound on win
+            if self.sound_cash_register:
+                self.sound_cash_register.play()
+        else:
+            # Play losing bell sound when losing the bet
+            if self.sound_losing_bell:
+                self.sound_losing_bell.play()
         self.update_debt()
     
     def update_debt(self):
@@ -259,6 +290,8 @@ class GameManager:
         if self.cash <= 0 and self.day <= self.day_limit:
             self.game_state = "GAME_OVER"
             self.game_over_message = "You're Bankrupt!"
+            if self.sound_losing_bell:
+                self.sound_losing_bell.play()
         elif self.day > self.day_limit:
             if self.cash >= self.win_target:
                 self.game_state = "GAME_OVER"
@@ -266,6 +299,8 @@ class GameManager:
             else:
                 self.game_state = "GAME_OVER"
                 self.game_over_message = "You Failed to Pay the Debt!"
+                if self.sound_losing_bell:
+                    self.sound_losing_bell.play()
                 
     def reset_for_next_race(self):
         if self.game_state == "POST_RACE":
@@ -289,10 +324,16 @@ class GameManager:
                 self.start_race()
             elif bet_25_rect.collidepoint(pos):
                 self.set_bet(25)
+                if self.sound_bet_low:
+                    self.sound_bet_low.play()
             elif bet_50_rect.collidepoint(pos):
                 self.set_bet(50)
+                if self.sound_bet_mid:
+                    self.sound_bet_mid.play()
             elif bet_100_rect.collidepoint(pos):
                 self.set_bet(100)
+                if self.sound_bet_high:
+                    self.sound_bet_high.play()
         elif self.game_state == "POST_RACE":
             if play_button_rect.collidepoint(pos):
                 self.reset_for_next_race()
@@ -343,7 +384,7 @@ class GameManager:
         draw_stat_bar(surface, 455, "STAMINA", self.selected_horse.stats["STAMINA"])
         draw_stat_bar(surface, 480, "WIT", self.selected_horse.stats["WIT"])
         
-        # Top UI - Objective and Debt (center-top)
+        # Top UI - Objective and Debt 
         draw_text("OBJECTIVE: Finish your debt", micro_font, WHITE, surface, SCREEN_WIDTH // 2, 10, align="center")
         draw_text(f"DEBT: {self.debt:,.0f}", small_font, RED, surface, SCREEN_WIDTH // 2, 30, align="center")
         

@@ -12,7 +12,7 @@ class Horse:
     """
     Stores all data for a single horse, including multiple animation states.
     """
-    def __init__(self, name, y_pos, spritesheet_filename, color_fallback, 
+    def __init__(self, name, y_pos, idle_strip_path, run_strip_path, color_fallback, 
                  start_line_x, horse_sprite_width, horse_sprite_height, animation_speed_ms,
                  weather_preference="Sunny"):
         
@@ -20,6 +20,7 @@ class Horse:
         self.rect = pygame.Rect(start_line_x, y_pos, horse_sprite_width, horse_sprite_height)
         self.color_fallback = color_fallback
         self.start_line_x = start_line_x
+        self.exact_x = float(start_line_x)  # Float precision for smooth movement
         self.animation_speed_ms = animation_speed_ms
         self.weather_preference = weather_preference
         
@@ -30,47 +31,49 @@ class Horse:
 
         # --- ANIMATION LOGIC ---
         self.running_frames = []
-        self.idle_frame = None
+        self.idle_frames = []
         self.current_animation_frames = [] 
         self.animation_state = "IDLE" # Start in IDLE state
 
         try:
-            self.spritesheet = SpriteSheet(spritesheet_filename)
-            
-            # 1. Load the RUNNING animation (Column 3/Index 2, Row 5/Index 4, 6 frames)
-            self.running_frames = self.spritesheet.get_animation_column(
-                frame_width=64,      # Your sprite's native width
-                frame_height=48,     # Your sprite's native height
-                column_index=2,      # 3rd column
-                start_row_index=4,   # 5th row
-                num_frames=6,        # 6 frames of running
+            # Load IDLE animation strip (3 frames, horizontal)
+            idle_sheet = SpriteSheet(idle_strip_path)
+            self.idle_frames = idle_sheet.get_animation_row(
+                frame_width=256,
+                frame_height=192,
+                num_frames=3,
                 scale_width=horse_sprite_width,
-                scale_height=horse_sprite_height
+                scale_height=horse_sprite_height,
+                row_index=0
             )
             
-            # 2. Load the single IDLE frame (Column 3/Index 2, Row 1/Index 0)
-            self.idle_frame = self.spritesheet.get_image(
-                x=128,               # 64px * column_index 2
-                y=0,                 # 48px * row_index 0
-                width=64,
-                height=48,
+            # Load RUN animation strip (5 frames, horizontal)
+            run_sheet = SpriteSheet(run_strip_path)
+            self.running_frames = run_sheet.get_animation_row(
+                frame_width=256,
+                frame_height=192,
+                num_frames=5,
                 scale_width=horse_sprite_width,
-                scale_height=horse_sprite_height
+                scale_height=horse_sprite_height,
+                row_index=0
             )
             
-            # 3. Set the starting animation to IDLE
-            self.current_animation_frames = [self.idle_frame] 
+            # Set the starting animation to IDLE
+            self.current_animation_frames = self.idle_frames
             self.current_frame_index = 0
             self.image = self.current_animation_frames[self.current_frame_index]
             self.last_update_time = pygame.time.get_ticks()
 
         except Exception as e:
-            print(f"Error loading animations for {spritesheet_filename}: {e}. Using color fallback.")
-            self.animation_frames = [] 
+            print(f"Error loading animations: {e}. Using color fallback.")
+            self.idle_frames = []
+            self.running_frames = []
             self.image = pygame.Surface((horse_sprite_width, horse_sprite_height))
             self.image.fill(self.color_fallback)
-            if self.idle_frame is None:
-                self.idle_frame = self.image 
+            self.idle_frames = [self.image]
+            self.current_animation_frames = self.idle_frames
+            self.current_frame_index = 0
+            self.last_update_time = pygame.time.get_ticks() 
 
     def generate_stats_and_odds(self):
         self.stats = {
@@ -88,12 +91,14 @@ class Horse:
     def move(self, weather_modifier=1.0):
         speed_roll = random.randint(1, 3) + int(self.stats["SPEED"] / 20)
         stamina_roll = random.randint(0, int(self.stats["STAMINA"] / 33))
-        # Apply weather modifier to movement
-        movement = (speed_roll + stamina_roll) * weather_modifier
-        self.rect.x += int(movement)
+        # Apply weather modifier and "slow" horse movement
+        movement = (speed_roll + stamina_roll) * weather_modifier * 0.15
+        self.exact_x += movement
+        self.rect.x = int(self.exact_x)
         
     def reset(self):
-        self.rect.x = self.start_line_x 
+        self.rect.x = self.start_line_x
+        self.exact_x = float(self.start_line_x)
         self.generate_stats_and_odds()
         # Reset animation to IDLE
         self.set_animation_state("IDLE")
@@ -106,7 +111,7 @@ class Horse:
             self.current_frame_index = 0 
         elif state == "IDLE" and self.animation_state != "IDLE":
             self.animation_state = "IDLE"
-            self.current_animation_frames = [self.idle_frame]
+            self.current_animation_frames = self.idle_frames
             self.current_frame_index = 0
             
     def update_animation(self):
@@ -124,8 +129,8 @@ class Horse:
         surface.blit(self.image, self.rect)
         
     def get_preview_image(self):
-        if self.idle_frame:
-            return self.idle_frame
+        if self.idle_frames:
+            return self.idle_frames[0]
         elif self.current_animation_frames:
             return self.current_animation_frames[0]
         else:
