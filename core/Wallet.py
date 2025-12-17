@@ -27,7 +27,7 @@ class Wallet:
     def update_debt(self):
         cash_gained = self.cash - self.starting_cash
         self.debt = self.original_debt - cash_gained
-        # Clamp debt between 0 and original debt
+        # Clamp debt between 0 and original debt (Dont go to negatives/above the original)
         self.debt = max(0, min(self.original_debt, self.debt))
     
     # Check if bankrupt

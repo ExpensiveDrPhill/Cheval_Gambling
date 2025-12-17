@@ -43,8 +43,8 @@ START_LINE_X = 40
 FINISH_LINE_X = SCREEN_WIDTH - 80 #yellow line thing
 HORSE_SPRITE_WIDTH = 64 
 HORSE_SPRITE_HEIGHT = 48
-STARTING_CASH = 5000 #(Maybe randomize later?)
-DEBT_TO_PAY = 10000 #how much debt to pay (should I randomize this...?)
+STARTING_CASH = 5000 #(Maybe randomize later?) (nope)
+DEBT_TO_PAY = 10000 #how much debt to pay (should I randomize this...?) (nah)
 DAY_LIMIT = 30 # Days to pay debt 
 ANIMATION_SPEED_MS = 100
 
@@ -351,7 +351,7 @@ def main():
         if game_manager.game_state == "RACING":
             game_manager.update_race()
         elif game_manager.game_state == "BETTING":
-             # Continually update animation so idle frames cycle (if you ever add more idle frames)
+             # Continually update animation so idle frames cycle 
              for horse in game_manager.horses:
                 horse.update()
 
