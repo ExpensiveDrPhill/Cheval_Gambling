@@ -226,7 +226,7 @@ class GameManager:
             # Get weather modifier for this horse
             weather_mod = self.weather.get_performance_modifier(horse.weather_preference)
             horse.move(weather_mod)
-            horse.update_animation() # Update animation while racing
+            horse.update() # Update animation while racing
             if horse.rect.right >= self.actual_finish_line_x and not self.winner: # First horse to cross (real line)
                 self.winner = horse
                 self.game_state = "POST_RACE"
@@ -353,7 +353,7 @@ def main():
         elif game_manager.game_state == "BETTING":
              # Continually update animation so idle frames cycle (if you ever add more idle frames)
              for horse in game_manager.horses:
-                horse.update_animation()
+                horse.update()
 
         game_manager.draw(screen) 
         pygame.display.flip()

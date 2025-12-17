@@ -8,11 +8,29 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from anims.SpriteSheet import SpriteSheet 
 
-# Horse class - handles individual horse data and animations
-class Horse:
+# Parent class for all game objects (demonstrates Inheritance)
+class GameObject:
+    # Initialize position coordinates
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    
+    # Abstract method - child classes must override (demonstrates Polymorphism)
+    def update(self):
+        raise NotImplementedError("Subclasses must implement update method")
+    
+    # Generic draw function
+    def draw(self, surface):
+        pass
+
+# Horse class - inherits from GameObject (demonstrates Inheritance)
+class Horse(GameObject):
     def __init__(self, name, y_pos, idle_strip_path, run_strip_path, color_fallback, 
                  start_line_x, horse_sprite_width, horse_sprite_height, animation_speed_ms,
                  weather_preference="Sunny"):
+        
+        # Call parent class constructor (demonstrates Inheritance)
+        super().__init__(start_line_x, y_pos)
         
         self.name = name
         self.rect = pygame.Rect(start_line_x, y_pos, horse_sprite_width, horse_sprite_height)
@@ -132,8 +150,8 @@ class Horse:
             self.current_animation_frames = self.idle_frames
             self.current_frame_index = 0
             
-    # Cycle through animation frames
-    def update_animation(self):
+    # Override parent update method (demonstrates Polymorphism)
+    def update(self):
         if not self.current_animation_frames: 
             return 
             
@@ -143,6 +161,7 @@ class Horse:
             self.current_frame_index = (self.current_frame_index + 1) % len(self.current_animation_frames)
             self.image = self.current_animation_frames[self.current_frame_index]
 
+    # Override parent draw method (demonstrates Polymorphism)
     def draw(self, surface):
         surface.blit(self.image, self.rect)
         
