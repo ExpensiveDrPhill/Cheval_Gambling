@@ -1,13 +1,8 @@
-"""
-Renderer.py - Handles all Pygame rendering and drawing
-Separates display logic from game logic
-"""
 import pygame
 import math
 
+# Renderer class - handles all drawing
 class Renderer:
-    """Manages all drawing operations for the game."""
-    
     def __init__(self, screen, screen_width, race_height, ui_height):
         self.screen = screen
         self.screen_width = screen_width
@@ -47,9 +42,19 @@ class Renderer:
         self.bet_50_rect = pygame.Rect(75, 530, 35, 35)
         self.bet_100_rect = pygame.Rect(120, 530, 35, 35)
         self.horse_img_rect = pygame.Rect(30, 425, 120, 90)
+        
+        # Load coin icon
+        try:
+            import os
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            coin_path = os.path.join(project_root, "Assets", "Coin.png")
+            self.coin_icon = pygame.image.load(coin_path).convert_alpha()
+            self.coin_icon = pygame.transform.scale(self.coin_icon, (30, 30))
+        except:
+            self.coin_icon = None
     
+    # Draw text with alignment
     def draw_text(self, text, font, color, x, y, align="topleft"):
-        """Draw text on screen with specified alignment."""
         text_obj = font.render(text, True, color)
         text_rect = text_obj.get_rect()
         if align == "topleft":
@@ -60,8 +65,8 @@ class Renderer:
             text_rect.midright = (x, y)
         self.screen.blit(text_obj, text_rect)
     
+    # Draw stat bars for horses
     def draw_stat_bar(self, y, label, value):
-        """Draw a stat bar with label and filled percentage."""
         self.draw_text(label, self.small_font, self.WHITE, 170, y)
         bar_bg_rect = pygame.Rect(260, y + 5, 120, 15)
         bar_fg_width = int((value / 100) * 120)
@@ -69,8 +74,8 @@ class Renderer:
         pygame.draw.rect(self.screen, self.STAT_BAR_BG, bar_bg_rect)
         pygame.draw.rect(self.screen, self.STAT_BAR_FG, bar_fg_rect)
     
+    # Draw popup message
     def draw_popup(self, text):
-        """Draw a centered popup with semi-transparent background."""
         text_surface = self.large_font.render(text, True, self.WHITE)
         text_rect = text_surface.get_rect(center=(self.screen_width / 2, self.race_height / 2))
         s = pygame.Surface((text_rect.width + 40, text_rect.height + 40))
@@ -79,8 +84,8 @@ class Renderer:
         self.screen.blit(s, (text_rect.x - 20, text_rect.y - 20))
         self.screen.blit(text_surface, text_rect)
     
+    # Main draw function
     def draw_game_state(self, game_manager):
-        """Main drawing method - renders entire game state."""
         # Draw background
         if game_manager.background:
             self.screen.blit(game_manager.background, (0, 0))
@@ -98,10 +103,6 @@ class Renderer:
         # Draw horses
         for horse in game_manager.horses:
             horse.draw(self.screen)
-        
-        # Draw selection rectangle
-        if game_manager.game_state == "BETTING" and game_manager.selected_horse:
-            pygame.draw.rect(self.screen, self.WHITE, game_manager.selected_horse.rect, 3)
         
         # Draw UI panel
         pygame.draw.rect(self.screen, self.UI_BG, (0, self.race_height, self.screen_width, self.ui_height))
@@ -126,7 +127,7 @@ class Renderer:
         self.draw_stat_bar(480, "WIT", game_manager.selected_horse.stats["WIT"])
         
         # Top UI
-        self.draw_text("OBJECTIVE: Finish your debt", self.micro_font, self.WHITE, 
+        self.draw_text("OBJECTIVE: Finish your debt by the end of the month.", self.micro_font, self.WHITE, 
                       self.screen_width // 2, 10, align="center")
         self.draw_text(f"DEBT: {game_manager.wallet.debt:,.0f}", self.small_font, self.RED, 
                       self.screen_width // 2, 30, align="center")
@@ -135,13 +136,15 @@ class Renderer:
         
         # Horse info
         self.draw_text(f"CHANCES: {game_manager.selected_horse.winrate_percent:.0f}%", 
-                      self.small_font, self.WHITE, 590, 430)
+                      self.small_font, self.WHITE, 590, 430) #x, y position
         self.draw_text(f"WEATHER: {game_manager.weather.current_weather}", 
-                      self.small_font, self.WHITE, 590, 455)
+                      self.small_font, self.WHITE, 590, 455) #x, y position
         self.draw_text(f"PREFERS: {game_manager.selected_horse.weather_preference}", 
-                      self.micro_font, self.WHITE, 590, 480)
+                      self.micro_font, self.WHITE, 590, 480) #x, y position
         
-        # Cash display
+        # Cash display with coin icon
+        if self.coin_icon:
+            self.screen.blit(self.coin_icon, (590, 515)) #x, y position
         self.draw_text(f"CASH: {game_manager.wallet.cash:,.0f}", self.medium_font, self.WHITE, 
                       770, 530, align="midright")
         
@@ -162,8 +165,8 @@ class Renderer:
         elif game_manager.game_state == "GAME_OVER":
             self.draw_popup(game_manager.game_over_message)
     
+    # Draw betting buttons
     def _draw_bet_buttons(self, selected_bet_pct):
-        """Draw the betting percentage buttons."""
         pygame.draw.rect(self.screen, self.GOLD_DARK if selected_bet_pct == 25 else self.GOLD, self.bet_25_rect)
         self.draw_text("25%", self.small_font, self.BLACK, 
                       self.bet_25_rect.centerx, self.bet_25_rect.centery, align="center")
@@ -176,8 +179,8 @@ class Renderer:
         self.draw_text("100%", self.small_font, self.BLACK, 
                       self.bet_100_rect.centerx, self.bet_100_rect.centery, align="center")
     
+    # Draw play/next day button
     def _draw_play_button(self, game_state):
-        """Draw the play/action button with appropriate text."""
         pygame.draw.rect(self.screen, self.RED, self.play_button_rect)
         
         button_text = "PLAY"
@@ -191,8 +194,8 @@ class Renderer:
         self.draw_text(button_text, self.medium_font, self.WHITE, 
                       self.play_button_rect.centerx, self.play_button_rect.centery, align="center")
     
+    # Return UI rects for click detection
     def get_ui_rects(self):
-        """Return dictionary of UI rectangles for click detection."""
         return {
             'play_button': self.play_button_rect,
             'bet_25': self.bet_25_rect,

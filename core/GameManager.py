@@ -11,7 +11,7 @@ from core.Horse import Horse
 from core.Wallet import Wallet
 from core.Renderer import Renderer
 
-#I nitialization
+#Initialization
 pygame.init()
 pygame.font.init()
 
@@ -40,13 +40,12 @@ BRIGHT_GREEN = (50, 255, 50)
 
 #  Game Constants 
 START_LINE_X = 40
-FINISH_LINE_X = SCREEN_WIDTH - 80
+FINISH_LINE_X = SCREEN_WIDTH - 80 #yellow line thing
 HORSE_SPRITE_WIDTH = 64 
 HORSE_SPRITE_HEIGHT = 48
-STARTING_CASH = 5000
-DEBT_TO_PAY = 10000
-DAY_LIMIT = 30
-WIN_TARGET_CASH = 20000 
+STARTING_CASH = 5000 #(Maybe randomize later?)
+DEBT_TO_PAY = 10000 #how much debt to pay (should I randomize this...?)
+DAY_LIMIT = 30 # Days to pay debt 
 ANIMATION_SPEED_MS = 100
 
 #lining
@@ -62,19 +61,17 @@ HORSE_NAMES = [
     "Thunderbolt", "Shadowfax", "Windrunner", "Stormchaser"
 ] 
 
-#  WEATHER CLASS 
-
+# Weather class - handles weather effects on horse speed
 class Weather:
-    """Manages weather conditions and their effects on horses."""
     def __init__(self):
         self.current_weather = random.choice(WEATHER_TYPES)
     
+    # Randomize weather for next race
     def change_weather(self):
-        """Randomly change the weather for a new race."""
         self.current_weather = random.choice(WEATHER_TYPES)
     
+    # Returns speed boost/penalty based on weather match
     def get_performance_modifier(self, horse_weather_preference):
-        """Returns a speed modifier based on weather match."""
         if self.current_weather == horse_weather_preference:
             return 1.1  # 10% boost in preferred weather
         elif self.current_weather in ["Rainy"] and horse_weather_preference in ["Sunny"]:
@@ -82,10 +79,8 @@ class Weather:
         else:
             return 1.0  # Neutral
 
-#  GAMEMANAGER CLASS 
-
+# Main game manager
 class GameManager:
-    """Manages the overall game state, loop, and data."""
     def __init__(self, screen=None):
         # Wallet for financial management
         self.wallet = Wallet(STARTING_CASH, DEBT_TO_PAY)
@@ -97,39 +92,46 @@ class GameManager:
         
         self.day = 1
         self.day_limit = DAY_LIMIT
-        self.win_target = WIN_TARGET_CASH
         self.game_state = "BETTING" 
         
         # Track line positions
         self.start_line_x = START_LINE_X
         self.finish_line_x = FINISH_LINE_X
+        # Cheesy fix: logic line is further back so horse fully crosses visual line
+        self.actual_finish_line_x = self.finish_line_x + 50
         self.track_top = TRACK_TOP_MARGIN
         self.track_bottom = TRACK_BOTTOM_MARGIN 
         
         # Build path to assets
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        
-        # Load background image
-        try:
-            bg_path = os.path.join(project_root, "Assets", "horse race arena.png")
-            self.background = pygame.image.load(bg_path).convert()
-            self.background = pygame.transform.scale(self.background, (SCREEN_WIDTH, RACE_HEIGHT))
-        except:
-            self.background = None
-        
+        self.project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
         # Weather system
         self.weather = Weather()
+
+        # Load background image based on current weather
+        self._load_background_for_weather()
         
         # Load sound effects
         try:
             pygame.mixer.init()
-            sounds_path = os.path.join(project_root, "Sounds")
+            sounds_path = os.path.join(self.project_root, "Sounds")
             self.sound_bet_low = pygame.mixer.Sound(os.path.join(sounds_path, "select_low.wav"))
             self.sound_bet_mid = pygame.mixer.Sound(os.path.join(sounds_path, "select_normal.wav"))
             self.sound_bet_high = pygame.mixer.Sound(os.path.join(sounds_path, "select_high.wav"))
             self.sound_cash_register = pygame.mixer.Sound(os.path.join(sounds_path, "cash_register.mp3"))
             self.sound_horse_gallop = pygame.mixer.Sound(os.path.join(sounds_path, "horse_galloping.mp3"))
             self.sound_losing_bell = pygame.mixer.Sound(os.path.join(sounds_path, "losing_bell.wav"))
+            self.sound_click = pygame.mixer.Sound(os.path.join(sounds_path, "clicking.wav"))
+            
+            # Load and play background music on loop
+            try:
+                bg_music_path = os.path.join(sounds_path, "background_music.mp3")
+                pygame.mixer.music.load(bg_music_path)
+                pygame.mixer.music.set_volume(0.4)  # Lower volume for background music
+                pygame.mixer.music.play(-1)  # Loop infinitely
+            except:
+                print("Warning: Could not load background music.")
+
         except:
             print("Warning: Could not load sound files. Game will run without audio.")
             self.sound_bet_low = None
@@ -138,13 +140,14 @@ class GameManager:
             self.sound_cash_register = None
             self.sound_horse_gallop = None
             self.sound_losing_bell = None
+            self.sound_click = None
         
         # Available horse sprite pairs (idle, run)
         self.available_horse_colors = ["black", "brown", "brown2", "gray", "white", "yellow"]
         self.available_sprites = []
         for color in self.available_horse_colors:
-            idle_path = os.path.join(project_root, "Assets", f"horses_idle_right_{color}.png")
-            run_path = os.path.join(project_root, "Assets", f"horses_run_right_{color}.png")
+            idle_path = os.path.join(self.project_root, "Assets", f"horses_idle_right_{color}.png")
+            run_path = os.path.join(self.project_root, "Assets", f"horses_run_right_{color}.png")
             self.available_sprites.append((idle_path, run_path))
         
         self.horses = self._create_horses()
@@ -154,8 +157,8 @@ class GameManager:
         self.winner = None
         self.game_over_message = ""
     
+    # Setup horses with random sprites and names
     def _create_horses(self):
-        """Create unique horses with different sprites and weather preferences."""
         horses = []
         y_positions = [90, 110, 130, 155, 180]
         
@@ -189,7 +192,7 @@ class GameManager:
         if self.game_state != "BETTING":
             return
         for horse in self.horses:
-            if horse.rect.collidepoint(mouse_pos):
+            if horse.hitbox.collidepoint(mouse_pos):
                 self.selected_horse = horse
                 self.wallet.reset_bet()
                 self.selected_bet_pct = 0
@@ -224,7 +227,7 @@ class GameManager:
             weather_mod = self.weather.get_performance_modifier(horse.weather_preference)
             horse.move(weather_mod)
             horse.update_animation() # Update animation while racing
-            if horse.rect.right >= FINISH_LINE_X and not self.winner:
+            if horse.rect.right >= self.actual_finish_line_x and not self.winner: # First horse to cross (real line)
                 self.winner = horse
                 self.game_state = "POST_RACE"
                 # Stop gallop sound when race ends
@@ -254,8 +257,8 @@ class GameManager:
             self.game_over_message = "You're Bankrupt!"
             if self.sound_losing_bell:
                 self.sound_losing_bell.play()
-        elif self.day > self.day_limit:
-            if self.wallet.has_reached_target():
+        elif self.day > self.day_limit: #win only if debt is zero at month end
+            if self.wallet.debt == 0:
                 self.game_state = "GAME_OVER"
                 self.game_over_message = "You Paid Your Debt and Won!"
             else:
@@ -271,8 +274,28 @@ class GameManager:
             self.selected_bet_pct = 0
             # Change weather and regenerate horses for variety
             self.weather.change_weather()
+            # Update background to match new weather
+            self._load_background_for_weather()
             self.horses = self._create_horses()
             self.selected_horse = self.horses[0]
+
+    # Load background based on weather
+    def _load_background_for_weather(self):
+        try:
+            # Map weather to asset filenames
+            if self.weather.current_weather == "Sunny":
+                bg_filename = "horse_race_arena_sunny.png"
+            elif self.weather.current_weather == "Rainy":
+                bg_filename = "horse_race_arena_rainy.png"
+            else:
+                bg_filename = "horse_race_arena_sunny.png"  # default
+
+            bg_path = os.path.join(self.project_root, "Assets", bg_filename)
+            self.background = pygame.image.load(bg_path).convert()
+            self.background = pygame.transform.scale(self.background, (SCREEN_WIDTH, RACE_HEIGHT))
+        except Exception:
+            # Fallback: no background image, use solid fill
+            self.background = None
 
     def full_game_reset(self):
         screen = self.renderer.screen if self.renderer else None
@@ -284,6 +307,8 @@ class GameManager:
             return
         if self.game_state == "BETTING":
             if self.renderer.play_button_rect.collidepoint(pos):
+                if self.sound_click:
+                    self.sound_click.play()
                 self.start_race()
             elif self.renderer.bet_25_rect.collidepoint(pos):
                 self.set_bet(25)

@@ -8,10 +8,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from anims.SpriteSheet import SpriteSheet 
 
+# Horse class - handles individual horse data and animations
 class Horse:
-    """
-    Stores all data for a single horse, including multiple animation states.
-    """
     def __init__(self, name, y_pos, idle_strip_path, run_strip_path, color_fallback, 
                  start_line_x, horse_sprite_width, horse_sprite_height, animation_speed_ms,
                  weather_preference="Sunny"):
@@ -20,9 +18,23 @@ class Horse:
         self.rect = pygame.Rect(start_line_x, y_pos, horse_sprite_width, horse_sprite_height)
         self.color_fallback = color_fallback
         self.start_line_x = start_line_x
-        self.exact_x = float(start_line_x)  # Float precision for smooth movement
+        # using float for smooth movement because rect only takes int
+        self.exact_x = float(start_line_x)
         self.animation_speed_ms = animation_speed_ms
         self.weather_preference = weather_preference
+        
+        # Hitbox for accurate collision detection (tighter than sprite rect)
+        # Positioned at bottom-center of sprite where the horse body is
+        hitbox_width = 50
+        hitbox_height = 40
+        hitbox_x_offset = (horse_sprite_width - hitbox_width) // 2
+        hitbox_y_offset = horse_sprite_height - hitbox_height - 5
+        self.hitbox = pygame.Rect(
+            start_line_x + hitbox_x_offset,
+            y_pos + hitbox_y_offset,
+            hitbox_width,
+            hitbox_height
+        )
         
         self.stats = {}
         self.winrate_percent = 0
@@ -94,17 +106,23 @@ class Horse:
         # Apply weather modifier and "slow" horse movement
         movement = (speed_roll + stamina_roll) * weather_modifier * 0.15
         self.exact_x += movement
+        old_x = self.rect.x
         self.rect.x = int(self.exact_x)
+        # Update hitbox to follow sprite position
+        self.hitbox.x += (self.rect.x - old_x)
         
     def reset(self):
+        old_x = self.rect.x
         self.rect.x = self.start_line_x
         self.exact_x = float(self.start_line_x)
+        # Reset hitbox position
+        self.hitbox.x += (self.rect.x - old_x)
         self.generate_stats_and_odds()
         # Reset animation to IDLE
         self.set_animation_state("IDLE")
 
+    # Switch between idle and running animations
     def set_animation_state(self, state):
-        """Switches the horse's animation between 'IDLE' and 'RUNNING'."""
         if state == "RUNNING" and self.animation_state != "RUNNING":
             self.animation_state = "RUNNING"
             self.current_animation_frames = self.running_frames
@@ -114,8 +132,8 @@ class Horse:
             self.current_animation_frames = self.idle_frames
             self.current_frame_index = 0
             
+    # Cycle through animation frames
     def update_animation(self):
-        """Cycles through the current animation frames."""
         if not self.current_animation_frames: 
             return 
             
