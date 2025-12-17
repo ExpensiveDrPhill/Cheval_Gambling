@@ -8,28 +8,28 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from anims.SpriteSheet import SpriteSheet 
 
-# Parent class for all game objects (demonstrates Inheritance)
+# Base GameObject class
 class GameObject:
     # Initialize position coordinates
     def __init__(self, x, y):
         self.x = x
         self.y = y
     
-    # Abstract method - child classes must override (demonstrates Polymorphism)
+    # Abstract method 
     def update(self):
         raise NotImplementedError("Subclasses must implement update method")
-    
-    # Generic draw function
+
+
     def draw(self, surface):
         pass
 
-# Horse class - inherits from GameObject (demonstrates Inheritance)
+# Horse class (inherits GameObject)
 class Horse(GameObject):
     def __init__(self, name, y_pos, idle_strip_path, run_strip_path, color_fallback, 
                  start_line_x, horse_sprite_width, horse_sprite_height, animation_speed_ms,
                  weather_preference="Sunny"):
         
-        # Call parent class constructor (demonstrates Inheritance)
+        # inherit position
         super().__init__(start_line_x, y_pos)
         
         self.name = name
@@ -59,7 +59,7 @@ class Horse(GameObject):
         self.multiplier = 0
         self.generate_stats_and_odds()
 
-        # --- ANIMATION LOGIC ---
+        # ANIMATION LOGIC
         self.running_frames = []
         self.idle_frames = []
         self.current_animation_frames = [] 
@@ -150,7 +150,7 @@ class Horse(GameObject):
             self.current_animation_frames = self.idle_frames
             self.current_frame_index = 0
             
-    # Override parent update method (demonstrates Polymorphism)
+    # Override parent update method (gameobject)
     def update(self):
         if not self.current_animation_frames: 
             return 
@@ -161,7 +161,7 @@ class Horse(GameObject):
             self.current_frame_index = (self.current_frame_index + 1) % len(self.current_animation_frames)
             self.image = self.current_animation_frames[self.current_frame_index]
 
-    # Override parent draw method (demonstrates Polymorphism)
+    # Override parent draw method (gameobject)
     def draw(self, surface):
         surface.blit(self.image, self.rect)
         
